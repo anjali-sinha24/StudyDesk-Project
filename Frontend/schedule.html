@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StudyDesk — Schedule</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body data-page="schedule">
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <h1>StudyDesk</h1>
+            <p>3rd Year B.Tech AIDS</p>
+        </div>
+
+        <nav class="nav">
+
+            <a data-page="dashboard" href="index.html">
+                ▦ Dashboard
+            </a>
+
+            <a data-page="tasks" href="tasks.html">
+                ☰ Tasks
+            </a>
+
+            <a data-page="schedule" href="schedule.html">
+                ▤ Schedule
+            </a>
+
+            <a data-page="exams" href="exams.html">
+                🎓 Exams
+            </a>
+
+            <a data-page="calendar" href="calendar.html">
+                ▦ Calendar
+            </a>
+
+            <a data-page="stats" href="stats.html">
+                📊 Stats
+            </a>
+
+        </nav>
+
+        <div class="side-note">
+            Personal study planner<br>
+            AI & Data Science
+        </div>
+
+    </aside>
+
+
+    <main>
+
+        <div class="eyebrow">
+            Subject-wise planning
+        </div>
+
+        <h2>
+            Schedule
+        </h2>
+
+        <div class="grid grid-2" id="scheduleGrid">
+            <div class="empty">
+                Loading schedule...
+            </div>
+        </div>
+
+    </main>
+
+</div>
+
+
+<script>
+
+const API_URL = "http://localhost:5001/api/tasks";
+
+
+const SUBJECTS = [
+    {
+        id: "FLA",
+        name: "Formal Language and Automata Theory",
+        color: "#6c63ff"
+    },
+    {
+        id: "CG",
+        name: "Computer Graphics",
+        color: "#00a896"
+    },
+    {
+        id: "SE",
+        name: "Software Engineering",
+        color: "#f4a261"
+    },
+    {
+        id: "OOPS",
+        name: "Object-Oriented Programming Language",
+        color: "#e76f51"
+    },
+    {
+        id: "DAA",
+        name: "Design and Analysis of Algorithms",
+        color: "#457b9d"
+    },
+    {
+        id: "SC",
+        name: "Soft Computing",
+        color: "#8d5cf6"
+    },
+    {
+        id: "PM",
+        name: "Predictive Modelling (IBM)",
+        color: "#2a9d8f"
+    },
+    {
+        id: "CL",
+        name: "Constitution of India",
+        color: "#e9c46a"
+    }
+];
+
+
+const subjectIdToCode = {
+    1: "FLA",
+    2: "CG",
+    3: "SE",
+    4: "OOPS",
+    5: "DAA",
+    6: "SC",
+    7: "PM",
+    8: "CL"
+};
+
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+function renderTask(task) {
+
+    const completed = Boolean(task.completed);
+
+    const subjectCode =
+        subjectIdToCode[task.subject_id]
+        || task.subject
+        || "Subject";
+
+
+    return `
+        <div class="task ${completed ? "done" : ""}" style="margin-bottom:10px;">
+
+            <div class="task-main">
+
+                <div class="task-title">
+                    ${escapeHTML(task.title)}
+                </div>
+
+                <div class="muted">
+
+                    ${escapeHTML(subjectCode)}
+
+                    ·
+
+                    ${escapeHTML(task.minutes || 30)}
+
+                    min
+
+                    ·
+
+                    ${escapeHTML(task.priority || "Medium")}
+
+                </div>
+
+            </div>
+
+            <div class="task-status">
+                ${completed ? "✓ Completed" : "Pending"}
+            </div>
+
+        </div>
+    `;
+}
+
+
+function renderSchedule(tasks) {
+
+    const scheduleGrid =
+        document.getElementById("scheduleGrid");
+
+
+    scheduleGrid.innerHTML = SUBJECTS.map(subject => {
+
+        const subjectTasks = tasks.filter(task => {
+
+            const code =
+                subjectIdToCode[task.subject_id]
+                || task.subject;
+
+            return code === subject.id;
+
+        });
+
+
+        const completedTasks =
+            subjectTasks.filter(task =>
+                Boolean(task.completed)
+            );
+
+
+        const completed =
+            completedTasks.length;
+
+
+        const total =
+            subjectTasks.length;
+
+
+        const percentage =
+            total
+                ? Math.round((completed / total) * 100)
+                : 0;
+
+
+        const firstFour =
+            subjectTasks.slice(0, 4);
+
+
+        return `
+
+            <div class="card">
+
+                <div
+                    class="subject"
+                    style="border-color:${subject.color}"
+                >
+
+                    <div class="subject-name">
+
+                        ${escapeHTML(subject.id)}
+
+                        —
+
+                        ${escapeHTML(subject.name)}
+
+                    </div>
+
+                    <div class="subject-full">
+
+                        ${total} task(s)
+
+                    </div>
+
+                </div>
+
+
+                <div class="progress">
+
+                    <i
+                        style="
+                            width:${percentage}%;
+                            background:${subject.color};
+                        "
+                    ></i>
+
+                </div>
+
+
+                <div
+                    class="muted"
+                    style="margin-top:8px"
+                >
+
+                    ${completed}/${total} completed
+
+                </div>
+
+
+                <div style="margin-top:12px">
+
+                    ${
+                        firstFour.length
+                        ? firstFour.map(renderTask).join("")
+                        : '<div class="empty">No tasks planned.</div>'
+                    }
+
+                </div>
+
+            </div>
+
+        `;
+
+    }).join("");
+
+}
+
+
+async function loadSchedule() {
+
+    try {
+
+        const response =
+            await fetch(API_URL);
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Backend returned ${response.status}`
+            );
+
+        }
+
+
+        const tasks =
+            await response.json();
+
+
+        renderSchedule(tasks);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Schedule load error:",
+            error
+        );
+
+
+        document.getElementById("scheduleGrid").innerHTML =
+
+            '<div class="empty">' +
+            'Could not load schedule. ' +
+            'Make sure the backend is running on port 5001.' +
+            '</div>';
+
+    }
+
+}
+
+
+loadSchedule();
+
+</script>
+
+</body>
+</html>

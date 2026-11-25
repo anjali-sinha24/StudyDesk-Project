@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StudyDesk — Exams</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="exams">
+<div class="app">
+<aside class="sidebar">
+<div class="brand"><h1>StudyDesk</h1><p>3rd Year B.Tech AIDS</p></div>
+<nav class="nav">
+<a data-page="dashboard" href="index.html">▦ Dashboard</a>
+<a data-page="tasks" href="tasks.html">☰ Tasks</a>
+<a data-page="schedule" href="schedule.html">▤ Schedule</a>
+<a data-page="exams" href="exams.html">🎓 Exams</a>
+<a data-page="calendar" href="calendar.html">▦ Calendar</a>
+<a data-page="stats" href="stats.html">📊 Stats</a>
+</nav>
+<div class="side-note">Personal study planner<br>AI & Data Science</div>
+</aside>
+<main>
+<div class="eyebrow">Don't get caught off guard</div><h2>Upcoming Exams</h2>
+<form id="examForm">
+<div class="form-grid" style="grid-template-columns:2fr 1.5fr 1fr auto">
+<div><label>Exam name</label><input class="field" name="name" placeholder="e.g. Internal Test" required></div>
+<div><label>Subject</label><select class="field" name="subject_id" required>
+<option value="1">FLA — Formal Language and Automata Theory</option>
+<option value="2">CG — Computer Graphics</option>
+<option value="3">SE — Software Engineering</option>
+<option value="4">OOPS — Object-Oriented Programming Language</option>
+<option value="5">DAA — Design and Analysis of Algorithms</option>
+<option value="6">SC — Soft Computing</option>
+<option value="7">PM — Predictive Modelling (IBM)</option>
+<option value="8">CL — Constitution of India</option>
+</select></div>
+<div><label>Date</label><input class="field" type="date" name="exam_date" required></div>
+<div><button class="btn-teal" type="submit">+ Add Exam</button></div>
+</div>
+</form>
+<div id="message" class="muted" style="margin:12px 0;"></div>
+<div class="card"><div id="examList"><div class="empty">Loading exams...</div></div></div>
+</main>
+</div>
+<script>
+const API_URL = "http://localhost:5001/api/exams";
+
+const SUBJECTS = {
+    1: { id: "FLA", name: "Formal Language and Automata Theory", color: "#6c63ff" },
+    2: { id: "CG", name: "Computer Graphics", color: "#00a896" },
+    3: { id: "SE", name: "Software Engineering", color: "#f4a261" },
+    4: { id: "OOPS", name: "Object-Oriented Programming Language", color: "#e76f51" },
+    5: { id: "DAA", name: "Design and Analysis of Algorithms", color: "#457b9d" },
+    6: { id: "SC", name: "Soft Computing", color: "#8d5cf6" },
+    7: { id: "PM", name: "Predictive Modelling (IBM)", color: "#2a9d8f" },
+    8: { id: "CL", name: "Constitution of India", color: "#e9c46a" }
+};
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function renderExams(exams) {
+    const examList = document.getElementById("examList");
+
+    if (!exams.length) {
+        examList.innerHTML = '<div class="empty">No exams added yet.</div>';
+        return;
+    }
+
+    examList.innerHTML = exams.map(exam => {
+        const subject = SUBJECTS[exam.subject_id] || {
+            id: "Subject",
+            name: exam.subject || "",
+            color: "#6c63ff"
+        };
+
+        return `
+            <div class="exam">
+                <div class="exam-icon">🎓</div>
+                <div style="flex:1">
+                    <b>${escapeHTML(exam.name)}</b>
+                    <div class="task-meta">
+                        <span class="dot" style="background:${subject.color}"></span>
+                        ${escapeHTML(subject.id)} — ${escapeHTML(subject.name)} · ${escapeHTML(exam.exam_date)}
+                    </div>
+                </div>
+                <button class="btn-danger" onclick="deleteExam(${exam.id})">Delete</button>
+            </div>
+        `;
+    }).join("");
+}
+
+async function loadExams() {
+    try {
+        const response = await fetch(API_URL);
+
+        if (!response.ok) {
+            throw new Error(`Backend returned ${response.status}`);
+        }
+
+        const exams = await response.json();
+        renderExams(exams);
+    } catch (error) {
+        console.error("Exam loading error:", error);
+        document.getElementById("examList").innerHTML =
+            '<div class="empty">Could not load exams. Make sure the backend is running on port 5001.</div>';
+    }
+}
+
+document.getElementById("examForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+
+    const data = {
+        name: formData.get("name"),
+        subject_id: Number(formData.get("subject_id")),
+        exam_date: formData.get("exam_date")
+    };
+
+    const message = document.getElementById("message");
+
+    try {
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "Failed to add exam");
+        }
+
+        message.textContent = "✅ Exam added successfully.";
+        message.style.color = "green";
+        event.target.reset();
+        await loadExams();
+    } catch (error) {
+        console.error("Add exam error:", error);
+        message.textContent = "❌ " + error.message;
+        message.style.color = "crimson";
+    }
+});
+
+async function deleteExam(id) {
+    const confirmed = confirm("Are you sure you want to delete this exam?");
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || "Failed to delete exam");
+        }
+
+        await loadExams();
+    } catch (error) {
+        console.error("Delete exam error:", error);
+        alert("Could not delete exam: " + error.message);
+    }
+}
+
+loadExams();
+</script>
+</body>
+</html>

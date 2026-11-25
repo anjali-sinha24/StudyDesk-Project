@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StudyDesk — Calendar</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body data-page="calendar">
+
+<div class="app">
+
+<aside class="sidebar">
+
+    <div class="brand">
+        <h1>StudyDesk</h1>
+        <p>3rd Year B.Tech AIDS</p>
+    </div>
+
+    <nav class="nav">
+
+        <a data-page="dashboard" href="index.html">
+            ▦ Dashboard
+        </a>
+
+        <a data-page="tasks" href="tasks.html">
+            ☰ Tasks
+        </a>
+
+        <a data-page="schedule" href="schedule.html">
+            ▤ Schedule
+        </a>
+
+        <a data-page="exams" href="exams.html">
+            🎓 Exams
+        </a>
+
+        <a data-page="calendar" href="calendar.html">
+            ▦ Calendar
+        </a>
+
+        <a data-page="stats" href="stats.html">
+            📊 Stats
+        </a>
+
+    </nav>
+
+    <div class="side-note">
+        Personal study planner<br>
+        AI & Data Science
+    </div>
+
+</aside>
+
+
+<main>
+
+    <div class="eyebrow">
+        Plan ahead
+    </div>
+
+    <h2>
+        Calendar
+    </h2>
+
+
+    <div class="card">
+
+        <h3>
+            Study calendar
+        </h3>
+
+        <div
+            id="calendarStatus"
+            class="muted"
+            style="margin-bottom:10px;"
+        >
+            Loading calendar...
+        </div>
+
+        <div
+            class="calendar"
+            id="cal"
+        ></div>
+
+    </div>
+
+</main>
+
+</div>
+
+
+<script>
+
+const TASKS_API = "http://localhost:5001/api/tasks";
+const EXAMS_API = "http://localhost:5001/api/exams";
+
+
+const SUBJECTS = {
+    1: {
+        id: "FLA",
+        name: "Formal Language and Automata Theory",
+        color: "#6c63ff"
+    },
+    2: {
+        id: "CG",
+        name: "Computer Graphics",
+        color: "#00a896"
+    },
+    3: {
+        id: "SE",
+        name: "Software Engineering",
+        color: "#f4a261"
+    },
+    4: {
+        id: "OOPS",
+        name: "Object-Oriented Programming Language",
+        color: "#e76f51"
+    },
+    5: {
+        id: "DAA",
+        name: "Design and Analysis of Algorithms",
+        color: "#457b9d"
+    },
+    6: {
+        id: "SC",
+        name: "Soft Computing",
+        color: "#8d5cf6"
+    },
+    7: {
+        id: "PM",
+        name: "Predictive Modelling (IBM)",
+        color: "#2a9d8f"
+    },
+    8: {
+        id: "CL",
+        name: "Constitution of India",
+        color: "#e9c46a"
+    }
+};
+
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+function todayISO() {
+
+    const now = new Date();
+
+    return `${now.getFullYear()}-` +
+        `${String(now.getMonth() + 1).padStart(2, "0")}-` +
+        `${String(now.getDate()).padStart(2, "0")}`;
+
+}
+
+
+function normalizeDate(value) {
+
+    if (!value) {
+        return "";
+    }
+
+    return String(value).slice(0, 10);
+
+}
+
+
+function subjectFor(subjectId) {
+
+    return SUBJECTS[subjectId] || {
+        id: "Subject",
+        name: "",
+        color: "#6c63ff"
+    };
+
+}
+
+
+async function loadCalendar() {
+
+    const status =
+        document.getElementById("calendarStatus");
+
+    try {
+
+        const [
+            tasksResponse,
+            examsResponse
+        ] = await Promise.all([
+            fetch(TASKS_API),
+            fetch(EXAMS_API)
+        ]);
+
+
+        if (!tasksResponse.ok) {
+            throw new Error(
+                `Tasks API returned ${tasksResponse.status}`
+            );
+        }
+
+
+        if (!examsResponse.ok) {
+            throw new Error(
+                `Exams API returned ${examsResponse.status}`
+            );
+        }
+
+
+        const tasks =
+            await tasksResponse.json();
+
+        const exams =
+            await examsResponse.json();
+
+
+        renderCalendar(tasks, exams);
+
+        status.textContent =
+            `${tasks.length} task(s) and ${exams.length} exam(s) loaded from the database.`;
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Calendar load error:",
+            error
+        );
+
+        status.textContent =
+            "Could not load calendar. Make sure the backend is running on port 5001.";
+
+        document.getElementById("cal").innerHTML =
+            '<div class="empty">Unable to load calendar.</div>';
+
+    }
+
+}
+
+
+function renderCalendar(tasks, exams) {
+
+    const now = new Date();
+
+    const year =
+        now.getFullYear();
+
+    const month =
+        now.getMonth();
+
+
+    const firstDay =
+        new Date(
+            year,
+            month,
+            1
+        ).getDay();
+
+
+    const totalDays =
+        new Date(
+            year,
+            month + 1,
+            0
+        ).getDate();
+
+
+    let html =
+        ["S", "M", "T", "W", "T", "F", "S"]
+            .map(day =>
+                `<div class="dayhead">${day}</div>`
+            )
+            .join("");
+
+
+    for (
+        let i = 0;
+        i < firstDay;
+        i++
+    ) {
+
+        html += "<div></div>";
+
+    }
+
+
+    for (
+        let day = 1;
+        day <= totalDays;
+        day++
+    ) {
+
+        const iso =
+            `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+
+        const dayTasks =
+            tasks.filter(task =>
+                normalizeDate(task.due_date) === iso
+            );
+
+
+        const dayExams =
+            exams.filter(exam =>
+                normalizeDate(exam.exam_date) === iso
+            );
+
+
+        const isToday =
+            iso === todayISO();
+
+
+        let eventsHTML = "";
+
+
+        dayTasks
+            .slice(0, 2)
+            .forEach(task => {
+
+                const subject =
+                    subjectFor(task.subject_id);
+
+                eventsHTML += `
+
+                    <small title="${escapeHTML(task.title)}">
+
+                        <span
+                            class="dot"
+                            style="background:${subject.color}"
+                        ></span>
+
+                        ${escapeHTML(subject.id)}
+
+                    </small>
+
+                `;
+
+            });
+
+
+        dayExams
+            .slice(0, 2)
+            .forEach(exam => {
+
+                eventsHTML += `
+
+                    <small title="${escapeHTML(exam.name)}">
+
+                        <span
+                            class="dot"
+                            style="background:#e76f51"
+                        ></span>
+
+                        🎓 ${escapeHTML(exam.name)}
+
+                    </small>
+
+                `;
+
+            });
+
+
+        html += `
+
+            <div class="day ${isToday ? "today" : ""}">
+
+                <b>${day}</b>
+
+                ${eventsHTML}
+
+            </div>
+
+        `;
+
+    }
+
+
+    document.getElementById("cal").innerHTML =
+        html;
+
+}
+
+
+loadCalendar();
+
+</script>
+
+</body>
+</html>

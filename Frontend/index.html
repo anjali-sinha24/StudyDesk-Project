@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StudyDesk — Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-page="dashboard">
+<div class="app">
+<aside class="sidebar">
+<div class="brand"><h1>StudyDesk</h1><p>3rd Year B.Tech AIDS</p></div>
+<nav class="nav">
+<a data-page="dashboard" href="index.html">▦ Dashboard</a>
+<a data-page="tasks" href="tasks.html">☰ Tasks</a>
+<a data-page="schedule" href="schedule.html">▤ Schedule</a>
+<a data-page="exams" href="exams.html">🎓 Exams</a>
+<a data-page="calendar" href="calendar.html">▦ Calendar</a>
+<a data-page="stats" href="stats.html">📊 Stats</a>
+</nav>
+<div class="side-note">Personal study planner<br>AI &amp; Data Science</div>
+</aside>
+<main>
+<div class="eyebrow">Personal academic planner</div><h2>Good to see you back.</h2>
+<div class="stats">
+  <div class="stat"><span class="muted">Today's tasks</span><b id="todayCount">0</b></div>
+  <div class="stat"><span class="muted">Completed</span><b id="doneCount">0</b></div>
+  <div class="stat"><span class="muted">Pending</span><b id="pendingCount">0</b></div>
+  <div class="stat"><span class="muted">Subjects</span><b>8</b></div>
+</div>
+<div class="grid grid-2">
+  <div class="card"><h3>Today's tasks</h3><div id="todayTasks"><div class="empty">Loading tasks...</div></div></div>
+  <div class="card"><h3>My subjects</h3><div id="subjectList"></div></div>
+</div>
+</main>
+</div>
+<script>
+const API_URL = "http://localhost:5001/api/tasks";
+
+const SUBJECTS = [
+  { id: "FLA", name: "Formal Language and Automata Theory", color: "#6c63ff" },
+  { id: "CG", name: "Computer Graphics", color: "#00a896" },
+  { id: "SE", name: "Software Engineering", color: "#f4a261" },
+  { id: "OOPS", name: "Object-Oriented Programming Language", color: "#e76f51" },
+  { id: "DAA", name: "Design and Analysis of Algorithms", color: "#457b9d" },
+  { id: "SC", name: "Soft Computing", color: "#8d5cf6" },
+  { id: "PM", name: "Predictive Modelling (IBM)", color: "#2a9d8f" },
+  { id: "CL", name: "Constitution of India", color: "#e9c46a" }
+];
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function localToday() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDate(dateValue) {
+  if (!dateValue) return "";
+  return String(dateValue).slice(0, 10);
+}
+
+function renderTasks(tasks) {
+  const today = localToday();
+  const todayTasks = tasks.filter(task => normalizeDate(task.due_date) === today);
+  const completedCount = todayTasks.filter(task => Boolean(task.completed)).length;
+  const pendingCount = todayTasks.length - completedCount;
+
+  document.getElementById("todayCount").textContent = todayTasks.length;
+  document.getElementById("doneCount").textContent = completedCount;
+  document.getElementById("pendingCount").textContent = pendingCount;
+
+  const container = document.getElementById("todayTasks");
+  if (!todayTasks.length) {
+    container.innerHTML = '<div class="empty">No tasks for today.</div>';
+    return;
+  }
+
+  container.innerHTML = todayTasks.map(task => {
+    const completed = Boolean(task.completed);
+    return `
+      <div class="task ${completed ? "done" : ""}" style="margin-bottom:12px;">
+        <div class="task-main">
+          <div class="task-title">${escapeHTML(task.title)}</div>
+          <div class="muted">
+            ${escapeHTML(task.subject || "Subject")} · ${escapeHTML(task.priority || "Medium")} · ${escapeHTML(task.minutes || 30)} min
+          </div>
+        </div>
+        <div class="task-status">${completed ? "✓ Completed" : "Pending"}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderSubjects() {
+  document.getElementById("subjectList").innerHTML = SUBJECTS.map(subject => `
+    <div class="subject" style="border-color:${subject.color};margin-bottom:10px">
+      <div class="subject-name">${escapeHTML(subject.id)} — ${escapeHTML(subject.name)}</div>
+    </div>
+  `).join("");
+}
+
+async function loadDashboard() {
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const tasks = await response.json();
+    renderTasks(tasks);
+  } catch (error) {
+    console.error("Dashboard load error:", error);
+    document.getElementById("todayTasks").innerHTML =
+      '<div class="empty">Could not load tasks. Make sure the backend is running on port 5001.</div>';
+  }
+}
+
+renderSubjects();
+loadDashboard();
+</script>
+</body>
+</html>

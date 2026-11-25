@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>StudyDesk — Stats</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body data-page="stats">
+
+<div class="app">
+
+<aside class="sidebar">
+
+    <div class="brand">
+        <h1>StudyDesk</h1>
+        <p>3rd Year B.Tech AIDS</p>
+    </div>
+
+    <nav class="nav">
+
+        <a data-page="dashboard" href="index.html">
+            ▦ Dashboard
+        </a>
+
+        <a data-page="tasks" href="tasks.html">
+            ☰ Tasks
+        </a>
+
+        <a data-page="schedule" href="schedule.html">
+            ▤ Schedule
+        </a>
+
+        <a data-page="exams" href="exams.html">
+            🎓 Exams
+        </a>
+
+        <a data-page="calendar" href="calendar.html">
+            ▦ Calendar
+        </a>
+
+        <a data-page="stats" href="stats.html">
+            📊 Stats
+        </a>
+
+    </nav>
+
+    <div class="side-note">
+        Personal study planner<br>
+        AI & Data Science
+    </div>
+
+</aside>
+
+
+<main>
+
+    <div class="eyebrow">
+        How you're doing
+    </div>
+
+    <h2>
+        Study Statistics
+    </h2>
+
+
+    <div class="stats" id="stats">
+        <div class="empty">
+            Loading statistics...
+        </div>
+    </div>
+
+
+    <div class="grid grid-2">
+
+        <div class="card">
+
+            <h3>
+                Tasks completed by subject
+            </h3>
+
+            <div
+                class="chart"
+                id="subjectChart"
+            ></div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>
+                Task distribution
+            </h3>
+
+            <div id="distribution">
+                <div class="empty">
+                    Loading...
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</main>
+
+</div>
+
+
+<script>
+
+const API_URL = "http://localhost:5001/api/tasks";
+
+
+const SUBJECTS = [
+    {
+        id: "FLA",
+        name: "Formal Language and Automata Theory",
+        color: "#6c63ff"
+    },
+    {
+        id: "CG",
+        name: "Computer Graphics",
+        color: "#00a896"
+    },
+    {
+        id: "SE",
+        name: "Software Engineering",
+        color: "#f4a261"
+    },
+    {
+        id: "OOPS",
+        name: "Object-Oriented Programming Language",
+        color: "#e76f51"
+    },
+    {
+        id: "DAA",
+        name: "Design and Analysis of Algorithms",
+        color: "#457b9d"
+    },
+    {
+        id: "SC",
+        name: "Soft Computing",
+        color: "#8d5cf6"
+    },
+    {
+        id: "PM",
+        name: "Predictive Modelling (IBM)",
+        color: "#2a9d8f"
+    },
+    {
+        id: "CL",
+        name: "Constitution of India",
+        color: "#e9c46a"
+    }
+];
+
+
+const subjectIdToCode = {
+    1: "FLA",
+    2: "CG",
+    3: "SE",
+    4: "OOPS",
+    5: "DAA",
+    6: "SC",
+    7: "PM",
+    8: "CL"
+};
+
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+function subjectCode(task) {
+
+    return (
+        subjectIdToCode[task.subject_id] ||
+        task.subject ||
+        "Subject"
+    );
+
+}
+
+
+function renderStats(tasks) {
+
+    const total =
+        tasks.length;
+
+
+    const done =
+        tasks.filter(task =>
+            Boolean(task.completed)
+        ).length;
+
+
+    const completionRate =
+        total
+            ? Math.round(done / total * 100)
+            : 0;
+
+
+    document.getElementById("stats").innerHTML = `
+
+        <div class="stat">
+
+            <span class="muted">
+                Total tasks
+            </span>
+
+            <b>
+                ${total}
+            </b>
+
+        </div>
+
+
+        <div class="stat">
+
+            <span class="muted">
+                Completed
+            </span>
+
+            <b>
+                ${done}
+            </b>
+
+        </div>
+
+
+        <div class="stat">
+
+            <span class="muted">
+                Completion rate
+            </span>
+
+            <b>
+                ${completionRate}%
+            </b>
+
+        </div>
+
+
+        <div class="stat">
+
+            <span class="muted">
+                Subjects
+            </span>
+
+            <b>
+                8
+            </b>
+
+        </div>
+
+    `;
+
+
+    // Completed tasks by subject
+
+    const values =
+        SUBJECTS.map(subject => {
+
+            const count =
+                tasks.filter(task => {
+
+                    return (
+                        subjectCode(task) === subject.id &&
+                        Boolean(task.completed)
+                    );
+
+                }).length;
+
+
+            return {
+                subject,
+                count
+            };
+
+        });
+
+
+    const max =
+        Math.max(
+            1,
+            ...values.map(item => item.count)
+        );
+
+
+    document.getElementById("subjectChart").innerHTML =
+
+        values.map(item => `
+
+            <div class="barwrap">
+
+                <div class="barvalue">
+                    ${item.count}
+                </div>
+
+                <div
+                    class="bar"
+                    style="
+                        height:${Math.max(
+                            8,
+                            item.count / max * 140
+                        )}px;
+                        background:${item.subject.color};
+                    "
+                ></div>
+
+                <div class="barlabel">
+                    ${escapeHTML(item.subject.id)}
+                </div>
+
+            </div>
+
+        `).join("");
+
+
+    // Task distribution
+
+    document.getElementById("distribution").innerHTML =
+
+        SUBJECTS.map(subject => {
+
+            const count =
+                tasks.filter(task =>
+                    subjectCode(task) === subject.id
+                ).length;
+
+
+            const percentage =
+                total
+                    ? count / total * 100
+                    : 0;
+
+
+            return `
+
+                <div
+                    style="margin:10px 0"
+                >
+
+                    <div
+                        style="
+                            display:flex;
+                            justify-content:space-between;
+                            font-size:12px;
+                        "
+                    >
+
+                        <b>
+                            ${escapeHTML(subject.id)}
+                        </b>
+
+                        <span>
+                            ${count} task(s)
+                        </span>
+
+                    </div>
+
+
+                    <div class="progress">
+
+                        <i
+                            style="
+                                width:${percentage}%;
+                                background:${subject.color};
+                            "
+                        ></i>
+
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+async function loadStats() {
+
+    try {
+
+        const response =
+            await fetch(API_URL);
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `Backend returned ${response.status}`
+            );
+
+        }
+
+
+        const tasks =
+            await response.json();
+
+
+        renderStats(tasks);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Stats load error:",
+            error
+        );
+
+
+        document.getElementById("stats").innerHTML =
+            '<div class="empty">' +
+            'Could not load statistics. ' +
+            'Make sure the backend is running on port 5001.' +
+            '</div>';
+
+
+        document.getElementById("subjectChart").innerHTML = "";
+
+        document.getElementById("distribution").innerHTML = "";
+
+    }
+
+}
+
+
+loadStats();
+
+</script>
+
+</body>
+</html>
